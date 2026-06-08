@@ -2,10 +2,16 @@
 
 const { Plugin, MarkdownView, Setting, PluginSettingTab } = require('obsidian');
 
+const COMMAND_FORMAT_PAIRED = 'format-paired';
+const COMMAND_FORMAT_INDENTED = 'format-indented';
+const LEGACY_COMMAND_FORMAT_PAIRED = 'format-arabic-poetry-paired';
+const LEGACY_COMMAND_FORMAT_INDENTED = 'format-arabic-poetry-indented';
+const WIDE_ARABIC_CHARS = 'مونةهىوي';
+
 const DEFAULT_SETTINGS = {
     pairedGapWidth: 10,
     indentedGapWidth: 5,
-    ribbonAction: 'format-arabic-poetry-paired'
+    ribbonAction: COMMAND_FORMAT_PAIRED
 };
 
 class ArabicPoetryFormatter extends Plugin {
@@ -13,30 +19,29 @@ class ArabicPoetryFormatter extends Plugin {
 
     async onload() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-        this.measurementCanvas = document.createElement('canvas');
-        this.measurementContext = this.measurementCanvas.getContext('2d');
+        this.normalizeSettings();
 
         this.addCommand({
-            id: 'format-arabic-poetry-paired',
-            name: 'Format Arabic Poetry (Paired)',
+            id: COMMAND_FORMAT_PAIRED,
+            name: 'Format Arabic poetry (paired)',
             editorCallback: (editor) => this.formatSelection(editor, 'paired')
         });
 
         this.addCommand({
-            id: 'format-arabic-poetry-indented',
-            name: 'Format Arabic Poetry (Indented)',
+            id: COMMAND_FORMAT_INDENTED,
+            name: 'Format Arabic poetry (indented)',
             editorCallback: (editor) => this.formatSelection(editor, 'indented')
         });
 
         this.registerEvent(
             this.app.workspace.on('editor-menu', (menu, editor) => {
                 menu.addItem((item) => {
-                    item.setTitle('Format Arabic Poetry (Paired)')
+                    item.setTitle('Format Arabic poetry (paired)')
                         .setIcon('pencil')
                         .onClick(() => this.formatSelection(editor, 'paired'));
                 });
                 menu.addItem((item) => {
-                    item.setTitle('Format Arabic Poetry (Indented)')
+                    item.setTitle('Format Arabic poetry (indented)')
                         .setIcon('pencil')
                         .onClick(() => this.formatSelection(editor, 'indented'));
                 });
@@ -46,6 +51,14 @@ class ArabicPoetryFormatter extends Plugin {
         this.updateRibbonIcon();
 
         this.addSettingTab(new PoetrySettingsTab(this.app, this));
+    }
+
+    normalizeSettings() {
+        if (this.settings.ribbonAction === LEGACY_COMMAND_FORMAT_PAIRED) {
+            this.settings.ribbonAction = COMMAND_FORMAT_PAIRED;
+        } else if (this.settings.ribbonAction === LEGACY_COMMAND_FORMAT_INDENTED) {
+            this.settings.ribbonAction = COMMAND_FORMAT_INDENTED;
+        }
     }
 
     formatSelection(editor, mode) {
@@ -65,7 +78,7 @@ class ArabicPoetryFormatter extends Plugin {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (!view) return;
 
-        if (this.settings.ribbonAction === 'format-arabic-poetry-paired') {
+        if (this.settings.ribbonAction === COMMAND_FORMAT_PAIRED) {
             this.formatSelection(view.editor, 'paired');
         } else {
             this.formatSelection(view.editor, 'indented');
@@ -73,8 +86,8 @@ class ArabicPoetryFormatter extends Plugin {
     }
 
     updateRibbonIcon() {
-        const isPaired = this.settings.ribbonAction === 'format-arabic-poetry-paired';
-        const title = isPaired ? 'Format Arabic Poetry (Paired)' : 'Format Arabic Poetry (Indented)';
+        const isPaired = this.settings.ribbonAction === COMMAND_FORMAT_PAIRED;
+        const title = isPaired ? 'Format Arabic poetry (paired)' : 'Format Arabic poetry (indented)';
 
         if (!this.ribbonIconEl) {
             this.ribbonIconEl = this.addRibbonIcon('pencil', title, () => this.performRibbonAction());
@@ -90,7 +103,7 @@ class ArabicPoetryFormatter extends Plugin {
             const char = withoutDiacritics[i];
             const code = char.charCodeAt(0);
             if (code >= 0x0627 && code <= 0x06FF) {
-                if ('مومنوهـوي'.includes(char)) { width += 1.2; }
+                if (WIDE_ARABIC_CHARS.includes(char)) { width += 1.2; }
                 else { width += 1.0; }
             } else if ((code >= 0x0020 && code <= 0x007F) || (code >= 0x0030 && code <= 0x0039)) {
                 width += 0.6;
@@ -157,15 +170,14 @@ class PoetrySettingsTab extends PluginSettingTab {
     display() {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h3', { text: 'Arabic Poetry Formatter Settings' });
 
         new Setting(containerEl)
             .setName('Ribbon icon action')
             .setDesc('Choose the default format to apply when clicking the ribbon icon in the left sidebar.')
             .addDropdown(dropdown => {
                 dropdown
-                    .addOption('format-arabic-poetry-paired', 'Format Paired')
-                    .addOption('format-arabic-poetry-indented', 'Format Indented')
+                    .addOption(COMMAND_FORMAT_PAIRED, 'Format paired')
+                    .addOption(COMMAND_FORMAT_INDENTED, 'Format indented')
                     .setValue(this.plugin.settings.ribbonAction)
                     .onChange(async (value) => {
                         this.plugin.settings.ribbonAction = value;
@@ -176,7 +188,7 @@ class PoetrySettingsTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Paired format gap width')
-            .setDesc('Controls the number of spaces in the center column for the "Paired" format.')
+            .setDesc('Controls the number of spaces in the center column for the paired format.')
             .addSlider(slider => {
                 slider.setLimits(2, 50, 1)
                     .setValue(this.plugin.settings.pairedGapWidth)
@@ -189,7 +201,7 @@ class PoetrySettingsTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Indented format indent width')
-            .setDesc('Controls the number of spaces used to indent the second hemistich in the "Indented" format.')
+            .setDesc('Controls the number of spaces used to indent the second hemistich in the indented format.')
             .addSlider(slider => {
                 slider.setLimits(0, 50, 1)
                     .setValue(this.plugin.settings.indentedGapWidth)

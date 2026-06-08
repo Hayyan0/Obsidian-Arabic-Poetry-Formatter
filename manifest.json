@@ -1,9 +1,9 @@
 {
   "id": "arabic-poetry-formatter",
   "name": "Arabic Poetry Formatter",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "minAppVersion": "1.4.0",
-  "description": "Intelligently formats Arabic poetry into two distinct styles: Paired (hemistiches on one line) and Indented (hemistiches on separate lines).",
+  "description": "Format selected Arabic poetry into paired or indented hemistich layouts.",
   "author": "Hayyan",
   "isDesktopOnly": false
 }
