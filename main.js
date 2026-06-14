@@ -112,45 +112,62 @@ class ArabicPoetryFormatter extends Plugin {
         return Math.ceil(width);
     }
 
+    parseMarkdownLine(line) {
+        const trimmed = line.trim();
+        const heading = trimmed.match(/^(#{1,6})([ \t]+)(.*)$/);
+        if (!heading) {
+            return { prefix: '', text: trimmed };
+        }
+
+        return {
+            prefix: heading[1] + heading[2],
+            text: heading[3].trim()
+        };
+    }
+
     formatTextPaired(text, gapWidth) {
-        const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        const rawLines = text.split(/\r?\n/)
+            .map(l => this.parseMarkdownLine(l))
+            .filter(l => l.text.length > 0 || l.prefix.length > 0);
         const pairs = [];
         for (let i = 0; i < rawLines.length; i += 2) {
             pairs.push([rawLines[i], rawLines[i + 1] || null]);
         }
 
-        const maxLeftWidth = Math.max(...pairs.map(p => this.estimateVisualWidth(p[0] || '')));
-        const maxRightWidth = Math.max(...pairs.map(p => this.estimateVisualWidth(p[1] || '')));
+        const maxLeftWidth = Math.max(...pairs.map(p => this.estimateVisualWidth((p[0] && p[0].text) || '')));
+        const maxRightWidth = Math.max(...pairs.map(p => this.estimateVisualWidth((p[1] && p[1].text) || '')));
 
         const space = '\u00A0';
         return pairs.map(([left, right]) => {
             if (right) {
-                const leftWidth = this.estimateVisualWidth(left);
+                const leftWidth = this.estimateVisualWidth(left.text);
                 const leftPadding = Math.max(0, maxLeftWidth - leftWidth);
-                return left + space.repeat(leftPadding + gapWidth) + right;
+                return left.prefix + left.text + space.repeat(leftPadding + gapWidth) + right.text;
             } else {
-                const leftWidth = this.estimateVisualWidth(left);
+                const leftWidth = this.estimateVisualWidth(left.text);
                 const totalWidth = maxLeftWidth + gapWidth + maxRightWidth;
                 const totalPadding = Math.max(0, totalWidth - leftWidth);
                 const leftPad = Math.floor(totalPadding / 2);
                 const rightPad = Math.ceil(totalPadding / 2);
-                return space.repeat(leftPad) + left + space.repeat(rightPad);
+                return left.prefix + space.repeat(leftPad) + left.text + space.repeat(rightPad);
             }
         }).join('\n');
     }
 
     formatTextIndented(text, gapWidth) {
-        const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        const rawLines = text.split(/\r?\n/)
+            .map(l => this.parseMarkdownLine(l))
+            .filter(l => l.text.length > 0 || l.prefix.length > 0);
         const result = [];
         for (let i = 0; i < rawLines.length; i += 2) {
             if (i + 1 < rawLines.length) {
                 const left = rawLines[i];
                 const right = rawLines[i + 1];
-                const indentLength = left.length + gapWidth;
+                const indentLength = left.text.length + gapWidth;
                 const spacing = '\u00A0'.repeat(indentLength);
-                result.push(left, spacing + right);
+                result.push(left.prefix + left.text, right.prefix + spacing + right.text);
             } else {
-                result.push(rawLines[i]);
+                result.push(rawLines[i].prefix + rawLines[i].text);
             }
         }
         return result.join('\n');
